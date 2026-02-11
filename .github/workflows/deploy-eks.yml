@@ -68,14 +68,25 @@ jobs:
           kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create or update secrets
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         run: |
-          if [ -n "${{ secrets.POSTGRES_USER }}" ] && [ -n "${{ secrets.POSTGRES_PASSWORD }}" ]; then
+          echo "Checking if POSTGRES secrets are configured..."
+          if [ -n "$POSTGRES_USER" ] && [ -n "$POSTGRES_PASSWORD" ]; then
+            echo "Creating/updating quickbite-secrets..."
             kubectl create secret generic quickbite-secrets \
-              --from-literal=POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
-              --from-literal=POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+              --from-literal=POSTGRES_USER="$POSTGRES_USER" \
+              --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
               -n ${{ inputs.namespace }} \
               --dry-run=client -o yaml | kubectl apply -f -
+            echo "Secret created/updated successfully"
+          else
+            echo "WARNING: POSTGRES_USER or POSTGRES_PASSWORD secrets not configured in GitHub"
           fi
+          
+          echo "=== Secrets in namespace ==="
+          kubectl get secrets -n ${{ inputs.namespace }}
 
       - name: Substitute environment variables in manifests
         env:
