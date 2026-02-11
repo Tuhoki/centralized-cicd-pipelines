@@ -84,7 +84,10 @@ jobs:
 
       - name: Wait for deployments to be ready
         run: |
-          kubectl rollout status deployment --all -n ${{ inputs.namespace }} --timeout=300s
+          for deployment in $(kubectl get deployments -n ${{ inputs.namespace }} -o jsonpath='{.items[*].metadata.name}'); do
+            echo "Waiting for deployment/$deployment..."
+            kubectl rollout status deployment/$deployment -n ${{ inputs.namespace }} --timeout=300s
+          done
 
       - name: Display deployment status
         run: |
