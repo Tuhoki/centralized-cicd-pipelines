@@ -30,7 +30,9 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ inputs.service_path }}
-        run: ./mvnw -B test
+        run: |
+          chmod +x mvnw
+          ./mvnw -B test
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
