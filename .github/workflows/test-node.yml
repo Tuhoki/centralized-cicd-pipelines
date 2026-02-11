@@ -1,0 +1,45 @@
+name: Node.js Test
+
+on:
+  workflow_call:
+    inputs:
+      service_path:
+        description: 'Path to the Node.js service directory'
+        required: true
+        type: string
+      node_version:
+        description: 'Node.js version'
+        required: false
+        type: string
+        default: '20'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.service_path }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.service_path }}
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ${{ inputs.service_path }}
+        run: npm run lint --if-present
+
+      - name: Run tests
+        working-directory: ${{ inputs.service_path }}
+        run: npm test --if-present
+
+      - name: Build
+        working-directory: ${{ inputs.service_path }}
+        run: npm run build

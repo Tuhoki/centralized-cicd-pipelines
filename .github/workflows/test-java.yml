@@ -1,0 +1,41 @@
+name: Java Maven Test
+
+on:
+  workflow_call:
+    inputs:
+      service_path:
+        description: 'Path to the Java service directory'
+        required: true
+        type: string
+      java_version:
+        description: 'Java version'
+        required: false
+        type: string
+        default: '17'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run tests
+        working-directory: ${{ inputs.service_path }}
+        run: ./mvnw -B test
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ github.run_id }}
+          path: ${{ inputs.service_path }}/target/surefire-reports/
+          retention-days: 7

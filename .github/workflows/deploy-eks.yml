@@ -1,0 +1,98 @@
+name: Deploy to EKS
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Deployment environment (dev, staging, product)'
+        required: true
+        type: string
+      cluster_name:
+        description: 'EKS cluster name'
+        required: true
+        type: string
+      aws_region:
+        description: 'AWS Region'
+        required: false
+        type: string
+        default: 'us-east-1'
+      namespace:
+        description: 'Kubernetes namespace'
+        required: false
+        type: string
+        default: 'quickbite'
+      manifests_path:
+        description: 'Path to Kubernetes manifests directory'
+        required: true
+        type: string
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name ${{ inputs.cluster_name }} --region ${{ inputs.aws_region }}
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Substitute environment variables in manifests
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          NAMESPACE: ${{ inputs.namespace }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          # Process all YAML files and substitute env vars
+          for file in ${{ inputs.manifests_path }}/*.yaml; do
+            if [ -f "$file" ]; then
+              envsubst < "$file" > "${file}.processed"
+              mv "${file}.processed" "$file"
+            fi
+          done
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f ${{ inputs.manifests_path }}/ -n ${{ inputs.namespace }}
+
+      - name: Wait for deployments to be ready
+        run: |
+          kubectl rollout status deployment --all -n ${{ inputs.namespace }} --timeout=300s
+
+      - name: Display deployment status
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n ${{ inputs.namespace }}
+          echo ""
+          echo "=== Services ==="
+          kubectl get svc -n ${{ inputs.namespace }}
+          echo ""
+          echo "=== Ingress ==="
+          kubectl get ingress -n ${{ inputs.namespace }} 2>/dev/null || echo "No ingress found"
