@@ -34,6 +34,10 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
+      POSTGRES_USER:
+        required: false
+      POSTGRES_PASSWORD:
+        required: false
 
 jobs:
   deploy:
@@ -62,6 +66,16 @@ jobs:
       - name: Create namespace if not exists
         run: |
           kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create or update secrets
+        run: |
+          if [ -n "${{ secrets.POSTGRES_USER }}" ] && [ -n "${{ secrets.POSTGRES_PASSWORD }}" ]; then
+            kubectl create secret generic quickbite-secrets \
+              --from-literal=POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+              --from-literal=POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+              -n ${{ inputs.namespace }} \
+              --dry-run=client -o yaml | kubectl apply -f -
+          fi
 
       - name: Substitute environment variables in manifests
         env:
