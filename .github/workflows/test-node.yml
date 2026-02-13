@@ -42,7 +42,9 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ inputs.service_path }}
-        run: npm test --if-present
+        run: |
+          chmod +x vitest
+          npm test --if-present
 
       - name: Build
         working-directory: ${{ inputs.service_path }}
