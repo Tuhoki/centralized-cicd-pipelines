@@ -38,9 +38,7 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ inputs.service_path }}
-        run: |
-          chmod +x mvnw
-          npm test --if-present
+        run: npm test --if-present
 
       - name: Build
         working-directory: ${{ inputs.service_path }}
