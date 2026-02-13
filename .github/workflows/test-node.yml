@@ -32,6 +32,10 @@ jobs:
         working-directory: ${{ inputs.service_path }}
         run: npm ci
 
+      - name: Install test dependencies (vitest)
+        run: npm install --save-dev vitest
+        working-directory: ${{ inputs.service_path }}
+
       - name: Run linter
         working-directory: ${{ inputs.service_path }}
         run: npm run lint --if-present
